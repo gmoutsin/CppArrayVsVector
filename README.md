@@ -16,3 +16,16 @@ std::vectors
 2. 0.636213 seconds
 7.90271e+08
 ```
+
+
+```
+c arrays
+1. 1e-06 seconds
+2. 1e-06 seconds
+std::arrays
+1. 1e-06 seconds
+2. 1e-06 seconds
+std::vectors
+1. 0.101824 seconds
+2. 0.641049 seconds
+```

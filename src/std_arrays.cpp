@@ -1,17 +1,18 @@
 #include "const.h"
 #include <iostream>
 #include <chrono>
-#include <vector>
+#include <array>
+
 
 using namespace std::chrono;
 
 int main() {
-  std::cout << "std::vectors\n";
-  std::vector<double> a(SIZE);
-  std::vector<double> b(SIZE);
-  std::vector<double> c(SIZE);
-  std::vector<double> d(SIZE);
-  std::vector<double> e(SIZE);
+  std::cout << "std::arrays\n";
+  std::array<double, SIZE> a;
+  std::array<double, SIZE> b;
+  std::array<double, SIZE> c;
+  std::array<double, SIZE> d;
+  std::array<double, SIZE> e;
   srand(1);
   int m = rand();
   double n = (1.0 + m * 1.0e-9) / (2.0 + m * 1.0e-9);
@@ -32,10 +33,10 @@ int main() {
   for (int i=0; i<ITERATIONS; i++) {
     for (int j=0; j<SIZE; j++) {
       a[j] += n + 1/(j + 1);
-      b[j] = a[j];
-      c[j] = b[j];
-      d[j] = c[j];
-      e[j] = d[j];
+      b[j] = a[j] - n;
+      c[j] = b[j] - 1/n;
+      d[j] = c[j] + n;
+      e[j] = d[j] + 1/n;
     }
   }
   stop = high_resolution_clock::now();
@@ -43,7 +44,11 @@ int main() {
   std::cout << "2. " << (duration.count() * 1.0e-6) << " seconds\n";
   double r = 0;
   for (int j=0; j<SIZE; j++) {
-    r += e[j];
+    r += a[j]/1000000000;
+    r += b[j]/1000000000;
+    r -= c[j]/1000000000;
+    r -= d[j]/1000000000;
+    r += e[j]/1000000000;
   }
   std::cout << r << std::endl << std::endl;
 

@@ -109,25 +109,45 @@ Similarly to the first loop, the second loop does some simple numerical operatio
 
 Running the benchmark with
 ```
-mkdir -p build && cmake -H. -Bbuild  && cmake --build build && ./build/c_arrays && ./build/std_arrays && ./build/std_vectors
+mkdir -p build && cmake -H. -Bbuild  && cmake --build build && ./build/c_arrays && ./build/std_arrays && ./build/std_vectors && ./build/c_arrays_dr && ./build/std_arrays_dr && ./build/std_vectors_dr && ./build/euler_allocator && ./build/euler_preallocator
 ```
 I got
 
 ```
 c arrays
-1. 1.00466 seconds
-2. 1.00093 seconds
+1. 0.991837 seconds
+2. 0.991505 seconds
 7.90271
 
 std::arrays
-1. 1.00166 seconds
-2. 1.01122 seconds
+1. 0.993516 seconds
+2. 0.987736 seconds
 7.90271
 
 std::vectors
-1. 1.00646 seconds
-2. 6.56342 seconds
+1. 0.986575 seconds
+2. 6.17722 seconds
 7.90271
+
+c arrays result
+1. 1e-06 seconds
+2. 1e-06 seconds
+
+std::arrays result dropped
+1. 1e-06 seconds
+2. 1e-06 seconds
+
+std::vectors result dropped
+1. 0.98446 seconds
+2. 6.1628 seconds
+
+euler allocator
+23.0308 seconds
+1.20608,-1.13016
+
+euler preallocator
+11.5526 seconds
+1.20608,-1.13016
 ```
 
 So we see that C arrays and `std::array` end up being the same thing. But `std::vector` is the interesting one here. With the first loop it is as fast as the arrays, but with the second loop it's 6 times slower!

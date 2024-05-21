@@ -231,7 +231,12 @@ std::vectors
 1. 1.08874 seconds
 2. 6.35561 seconds
 ```
-Interestingly the compiler understands that the computations are pointless when arrays are used and it doesn't bother doing them, but when vectors are used it cannot figure this out. I have no clue why this is the case, but this can end up being a significant difference in performance.
+Interestingly the compiler understands that the computations are pointless when arrays are used and it doesn't bother doing them, but when vectors are used it cannot figure this out. I have no clue why this is the case. Is this fixed in a newer version of gcc? In any case this can end up causing a significant difference in performance.
+
+If anyone knows why this difference exists, please do comment to tell me. By the way, `gcc --version` gives me:
+```
+gcc (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0
+```
 
 ## Just use `std::arrays` when possible
 

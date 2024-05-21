@@ -14,12 +14,17 @@
 6. [How is a vector different anyway?](#how-is-a-vector-different-anyway?)
 7. [Difference in optimisation](#difference-in-optimisation)
 8. [Just use `std::arrays` when possible](#just-use-stdarrays-when-possible)
-
+8. [Preallocation](#preallocation)
+8. [The allocator](#the-allocator)
+8. [The preallocator](#the-preallocator)
+8. [The allocation results](#the-allocation-results)
 
 
 ## The issue
 
 This question has been asked repeatedly and the answers usually end up using quotes that contain the words "premature optimization", see for example the answers [here](https://stackoverflow.com/questions/381621/using-arrays-or-stdvectors-in-c-whats-the-performance-gap). I want to make the case that most answers given are technically wrong (though usually practically right) and that this is a valid question with a non-trivial answer.
+
+For completeness I have also added a comment to the widely acceptable and much less controversial subject of array preallocation. 
 
 ## TLDR
 
@@ -33,6 +38,9 @@ If you are interested just in a short answer, then here you are:
 
 - *Should I use a C array instead of `std::vector`?*
   Absolutely not.
+
+- *Should I Preallocate arrays?*
+  When it is possible, yes.
 
 
 ## The benchmark
@@ -109,7 +117,7 @@ Similarly to the first loop, the second loop does some simple numerical operatio
 
 Running the benchmark with
 ```
-mkdir -p build && cmake -H. -Bbuild  && cmake --build build && ./build/c_arrays && ./build/std_arrays && ./build/std_vectors && ./build/c_arrays_dr && ./build/std_arrays_dr && ./build/std_vectors_dr && ./build/euler_allocator && ./build/euler_preallocator
+mkdir -p build && cmake -H. -Bbuild  && cmake --build build && ./build/c_arrays && ./build/std_arrays && ./build/std_vectors 
 ```
 I got
 
@@ -128,26 +136,6 @@ std::vectors
 1. 0.986575 seconds
 2. 6.17722 seconds
 7.90271
-
-c arrays result
-1. 1e-06 seconds
-2. 1e-06 seconds
-
-std::arrays result dropped
-1. 1e-06 seconds
-2. 1e-06 seconds
-
-std::vectors result dropped
-1. 0.98446 seconds
-2. 6.1628 seconds
-
-euler allocator
-23.0308 seconds
-1.20608,-1.13016
-
-euler preallocator
-11.5526 seconds
-1.20608,-1.13016
 ```
 
 So we see that C arrays and `std::array` end up being the same thing. But `std::vector` is the interesting one here. With the first loop it is as fast as the arrays, but with the second loop it's 6 times slower!
@@ -225,7 +213,13 @@ An obvious question to ask is whether this is still the case if we don't use the
 
 ## Difference in optimisation
 
-The last line that prints the value of `r` is there to stop the compiler from optimising away the computations. If we comment this out, this is what happens:
+The last line that prints the value of `r` is there to stop the compiler from optimising away the computations. The `_drop_result` variant of the above programs do exactly that. It is the same code but the final result `r` is never used for anything.
+
+Runnign the benchmark with:
+```
+mkdir -p build && cmake -H. -Bbuild  && cmake --build build && ./build/c_arrays_dr && ./build/std_arrays_dr && ./build/std_vectors_dr
+```
+We get:
 ```
 c arrays
 1. 1e-06 seconds
@@ -235,10 +229,88 @@ std::arrays
 2. 1e-06 seconds
 std::vectors
 1. 1.08874 seconds
-2. 6.55561 seconds
+2. 6.35561 seconds
 ```
 Interestingly the compiler understands that the computations are pointless when arrays are used and it doesn't bother doing them, but when vectors are used it cannot figure this out. I have no clue why this is the case, but this can end up being a significant difference in performance.
 
 ## Just use `std::arrays` when possible
 
-If you can have a vector that has known size and never gets resized, then you should make it an `std::array`. In the worst case scenario it has the same performance as `std::vector` and you don't give away any functionality. It knows its size, it offers unsafe access the same way, `a[n]`, it offers runtime bound checking with `a.at(n)` and also it offers compile time bound checking with `std::get<n>(a)` if `n` is known to the compiler. 
+If you can have a vector that has known size and never gets resized, then you should make it an `std::array`. In the worst case scenario it has the same performance as `std::vector` and you don't give away any functionality. It knows its size, it offers unsafe access the same way, `a[n]`, it offers runtime bound checking with `a.at(n)` and also it offers compile time bound checking with `std::get<n>(a)` if `n` is known to the compiler.
+
+# Preallocation
+
+A different but connected issue that affects perfomance is the casual declaration of vectors expecting that the compiler can optimise them out. This can lead to a situation where a vector is created temporarily to keep some values only to be destroyed a few instructions later. Allocation of heap space has an overhead that can end up costing quite a bit of time. Of course the impact depends on the frequency of this operation. A profiler should be a ble to provide some insight to that.
+
+The solution is to preallocate an array and use it to store the temprary values. Passing around the array has an overhead itself, but on one hand it is smaller than allocating heap memory and on the other hand it is easier for the compiler to optimise this operation.
+
+## The benchmark
+
+The benchmark is a simple numerical solution to the mathematical pendulum using the Euler method. There are two different implemetantion.
+
+### The allocator
+
+```
+std::vector<double> step(const std::vector<double>& x) {
+  std::vector<double> res(2);
+  res[0] = x[0] + EPSILON * x[1];
+  res[1] = x[1] + EPSILON * std::sin(x[0]);
+  return res;
+}
+
+int main() {
+  std::cout << "euler allocator\n";
+  std::vector<double> x = {0.1, 0};
+  auto start = high_resolution_clock::now();
+  for (int i = 0; i < ITERATIONS; i++) {
+    x = step(x);
+  }
+  auto stop = high_resolution_clock::now();
+  auto duration = duration_cast<microseconds>(stop - start);
+  std::cout << (duration.count() * 1.0e-6) << " seconds\n";
+  std::cout << x[0] << "," << x[1] << std::endl << std::endl;
+}
+```
+The position of the system is represented by a 2-vector. In this case the function that updates the position takes a 2-vector and it returns a new 2-vector with the updated position.
+
+### The preallocator
+
+```
+void step(std::vector<double>& x) {
+  double p = x[0];
+  x[0] += EPSILON * x[1];
+  x[1] += EPSILON * std::sin(p);
+}
+
+int main() {
+  std::cout << "euler preallocator\n";
+  std::vector<double> x = {0.1, 0};
+  auto start = high_resolution_clock::now();
+  for (int i = 0; i < ITERATIONS; i++) {
+    step(x);
+  }
+  auto stop = high_resolution_clock::now();
+  auto duration = duration_cast<microseconds>(stop - start);
+  std::cout << (duration.count() * 1.0e-6) << " seconds\n";
+  std::cout << x[0] << "," << x[1] << std::endl << std::endl;
+}
+```
+The preallocator does the same operations. However, the system position it is updated in place, i.e. the same vector is used to hold the new position. This requires the allocation of a new temporary variable. However, this variable is allocated on the stack, so the allocation comes for free when the stack frame gets created.
+
+### The allocation results
+
+Running the benchmark with
+```
+mkdir -p build && cmake -H. -Bbuild  && cmake --build build && ./build/euler_allocator && ./build/euler_preallocator
+```
+We get
+```
+euler allocator
+23.1308 seconds
+1.20608,-1.13016
+
+euler preallocator
+11.2252 seconds
+1.20608,-1.13016
+```
+
+So we see that roughly half of the time is lost into allocating heap memory. This percentage here is so big in this case because not many operations are being performed at each timestep.

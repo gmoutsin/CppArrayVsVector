@@ -5,7 +5,7 @@
 using namespace std::chrono;
 
 int main() {
-  std::cout << "c arrays result\n";
+  std::cout << "c arrays result dropped\n";
   double a[SIZE];
   double b[SIZE];
   double c[SIZE];

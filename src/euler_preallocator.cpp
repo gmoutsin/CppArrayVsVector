@@ -6,12 +6,10 @@
 
 using namespace std::chrono;
 
-static constexpr double epsilon = 1.0e-6;
-
 void step(std::vector<double>& x) {
   double p = x[0];
-  x[0] += epsilon * x[1];
-  x[1] += epsilon * std::sin(p);
+  x[0] += EPSILON * x[1];
+  x[1] += EPSILON * std::sin(p);
 }
 
 int main() {
